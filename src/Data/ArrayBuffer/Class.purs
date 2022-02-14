@@ -15,57 +15,52 @@ module Data.ArrayBuffer.Class
   ) where
 
 import Data.ArrayBuffer.Class.Types
-import Data.ArrayBuffer.Types
-  (ArrayBuffer, ByteOffset, ByteLength, DataView, ArrayView, Uint8Array)
+
+import Data.Array (fromFoldable, toUnfoldable, cons, uncons) as Array
 import Data.ArrayBuffer.ArrayBuffer (empty, byteLength, slice) as AB
 import Data.ArrayBuffer.DataView as DV
 import Data.ArrayBuffer.Typed (buffer, whole, traverse_, class TypedArray) as TA
-import Data.ArrayBuffer.Typed.Unsafe (AV (..))
-
-import Prelude
-  ( Unit, Ordering (..), class Ord
-  , (<$>), (<*>), (>>=), (<<<), (<=), (<>), (+), (-), (/=), (==), (<)
-  , pure, otherwise, show, unit, bind, map, discard, void)
-import Data.Maybe (Maybe (..))
-import Data.Either (Either (..))
-import Data.Tuple (Tuple (..))
-import Data.List (List (..))
-import Data.Void (Void)
-import Data.NonEmpty (NonEmpty (..))
-import Data.Monoid.Additive (Additive (..))
-import Data.Monoid.Multiplicative (Multiplicative (..))
-import Data.Monoid.Conj (Conj (..))
-import Data.Monoid.Disj (Disj (..))
-import Data.Monoid.Dual (Dual (..))
-import Data.Monoid.Endo (Endo (..))
-import Data.Set (Set, fromFoldable, toUnfoldable) as Set
-import Data.Map (Map, fromFoldable, toUnfoldable) as Map
-import Data.Hashable (class Hashable)
-import Data.HashSet (HashSet, fromFoldable, toArray) as HS
-import Data.HashMap (HashMap, toArrayBy, fromArray) as HM
-import Data.Array (fromFoldable, toUnfoldable, cons, uncons) as Array
-import Data.Vec (Vec, fromArray) as Vec
+import Data.ArrayBuffer.Types (ArrayBuffer, ByteOffset, ByteLength, DataView, ArrayView, Uint8Array)
+import Data.Either (Either(..))
 import Data.Enum (toEnum, fromEnum)
-import Data.Traversable (for_, traverse)
 import Data.Foldable (sum, length)
-import Data.Unfoldable (replicateA)
-import Data.UInt (fromInt, toInt, fromNumber, toNumber) as UInt
+import Data.Generic.Rep (class Generic, to, from, NoConstructors, NoArguments(..), Sum(..), Product(..), Constructor(..), Argument(..))
+import Data.HashMap (HashMap, toArrayBy, fromArray) as HM
+import Data.HashSet (HashSet, fromFoldable, toArray) as HS
+import Data.Hashable (class Hashable)
+import Data.Int.Bits ((.|.), (.&.), shr, shl, xor)
+import Data.List (List(..))
+import Data.Map (Map, fromFoldable, toUnfoldable) as Map
+import Data.Maybe (Maybe(..))
+import Data.Monoid.Additive (Additive(..))
+import Data.Monoid.Conj (Conj(..))
+import Data.Monoid.Disj (Disj(..))
+import Data.Monoid.Dual (Dual(..))
+import Data.Monoid.Endo (Endo(..))
+import Data.Monoid.Multiplicative (Multiplicative(..))
+import Data.NonEmpty (NonEmpty(..))
+import Data.Set (Set, fromFoldable, toUnfoldable) as Set
 import Data.String (toCodePointArray, fromCodePointArray)
 import Data.String.CodePoints (CodePoint, codePointFromChar, singleton)
 import Data.String.CodeUnits (toChar)
-import Data.Int.Bits ((.|.), (.&.), shr, shl, xor)
-import Data.Symbol (class IsSymbol, SProxy (..), reflectSymbol)
-import Data.Generic.Rep (class Generic, to, from, NoConstructors, NoArguments (..), Sum (..), Product (..), Constructor (..), Argument (..))
-import Foreign.Object (Object, toAscUnfoldable, fromFoldable, lookup, insert, empty) as O
-import Prim.Row (class Cons, class Lacks)
-import Prim.RowList (kind RowList, Cons, Nil, class RowToList) as RL
-import Record (insert, get) as Record
-import Type.Data.RowList (RLProxy (..))
-import Type.Proxy (Proxy (..))
+import Data.Symbol (class IsSymbol, reflectSymbol)
+import Data.Traversable (for_, traverse)
+import Data.Tuple (Tuple(..))
 import Data.Typelevel.Num (class Nat, toInt')
+import Data.UInt (fromInt, toInt, fromNumber, toNumber) as UInt
+import Data.Unfoldable (replicateA)
+import Data.Vec (Vec, fromArray) as Vec
+import Data.Void (Void)
 import Effect (Effect)
 import Effect.Exception (throw)
 import Effect.Ref (new, read, write) as Ref
+import Foreign.Object (Object, toAscUnfoldable, fromFoldable, lookup, insert, empty) as O
+import Prelude (Unit, Ordering(..), class Ord, (<$>), (<*>), (>>=), (<<<), (<=), (<>), (+), (-), (/=), (==), (<), pure, otherwise, show, unit, bind, map, discard, void)
+import Prim.Row (class Cons, class Lacks)
+import Prim.RowList (RowList, Cons, Nil, class RowToList) as RL
+import Record (insert, get) as Record
+import Type.Data.RowList (RLProxy(..))
+import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 
 
@@ -174,8 +169,6 @@ instance dynamicByteLengthDataView :: DynamicByteLength DataView where
   byteLength xs = byteLength (DV.buffer xs)
 instance dynamicByteLengthArrayView :: DynamicByteLength (ArrayView a) where
   byteLength xs = byteLength (TA.buffer xs)
-instance dynamicByteLengthAV :: DynamicByteLength (AV a t) where
-  byteLength (AV xs) = byteLength xs
 instance dynamicByteLengthRecord :: GEncodeArrayBuffer row list => DynamicByteLength (Record row) where
   byteLength xs = gPutArrayBuffer xs (RLProxy :: RLProxy list) >>= byteLength
 instance dynamicByteLengthNoConstructors :: DynamicByteLength NoConstructors where
@@ -303,13 +296,13 @@ instance decodeArrayBufferFloat64LE :: DecodeArrayBuffer Float64LE where
 -- * Casual instances
 
 instance encodeArrayBufferUnit :: EncodeArrayBuffer Unit where
-  putArrayBuffer b o _ = pure (Just 0)
+  putArrayBuffer _ _ _ = pure (Just 0)
 instance decodeArrayBufferUnit :: DecodeArrayBuffer Unit where
-  readArrayBuffer b o = pure (Just unit)
+  readArrayBuffer _ _ = pure (Just unit)
 instance encodeArrayBufferVoid :: EncodeArrayBuffer Void where
-  putArrayBuffer b o _ = pure (Just 0)
+  putArrayBuffer _ _ _ = pure (Just 0)
 instance decodeArrayBufferVoid :: DecodeArrayBuffer Void where
-  readArrayBuffer b o = throw "Cannot decode a Void value"
+  readArrayBuffer _ _ = throw "Cannot decode a Void value"
 instance encodeArrayBufferBoolean :: EncodeArrayBuffer Boolean where
   putArrayBuffer b o x =
     let v = if x then 1 else 0
@@ -735,22 +728,17 @@ instance decodeArrayBufferArrayView :: TA.TypedArray a t => DecodeArrayBuffer (A
     case mX of
       Nothing -> pure Nothing
       Just x -> Just <$> TA.whole x
-instance encodeArrayBufferAV :: EncodeArrayBuffer (AV a t) where
-  putArrayBuffer b o (AV xs) = putArrayBuffer b o xs
-instance decodeArrayBufferAV :: TA.TypedArray a t => DecodeArrayBuffer (AV a t) where
-  readArrayBuffer b o = (map AV) <$> readArrayBuffer b o
-
 
 -- Generics
 
 instance encodeArrayBufferNoConstructors :: EncodeArrayBuffer NoConstructors where
-  putArrayBuffer b o _ = pure (Just 0)
+  putArrayBuffer _ _ _ = pure (Just 0)
 instance decodeArrayBufferNoConstructors :: DecodeArrayBuffer NoConstructors where
-  readArrayBuffer b o = throw "Can't generate a NoConstructors value"
+  readArrayBuffer _ _ = throw "Can't generate a NoConstructors value"
 instance encodeArrayBufferNoArguments :: EncodeArrayBuffer NoArguments where
-  putArrayBuffer b o NoArguments = pure (Just 0)
+  putArrayBuffer _ _ NoArguments = pure (Just 0)
 instance decodeArrayBufferNoArguments :: DecodeArrayBuffer NoArguments where
-  readArrayBuffer b o = pure (Just NoArguments)
+  readArrayBuffer _ _ = pure (Just NoArguments)
 instance encodeArrayBufferSum :: (EncodeArrayBuffer a, EncodeArrayBuffer b) => EncodeArrayBuffer (Sum a b) where
   putArrayBuffer b o s =
     let v = case s of
@@ -816,8 +804,8 @@ instance gEncodeArrayBufferCons ::
   , Cons field value tail' row
   ) => GEncodeArrayBuffer row (RL.Cons field value tail) where
   gPutArrayBuffer row _ = do
-    let sProxy :: SProxy field
-        sProxy = SProxy
+    let sProxy :: Proxy field
+        sProxy = Proxy
         value :: value
         value = Record.get sProxy row
     x <- encodeArrayBuffer value
@@ -838,8 +826,8 @@ instance gDecodeArrayBufferCons ::
   , Lacks field rowTail
   ) => GDecodeArrayBuffer row (RL.Cons field value tail) where
   gReadArrayBuffer object _ = do
-    let sProxy :: SProxy field
-        sProxy = SProxy
+    let sProxy :: Proxy field
+        sProxy = Proxy
         fieldName = reflectSymbol sProxy
     rest <- gReadArrayBuffer object (RLProxy :: RLProxy tail)
     case O.lookup fieldName object of
